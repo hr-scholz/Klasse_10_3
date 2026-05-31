@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Datentypen Briefumschlag Spiel</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: white;
+    touch-action: manipulation;
+  }
+  h1 {
+    text-align: center;
+    font-size: 2em;
+    margin-bottom: 8px;
+    color: #e0e0ff;
+    text-shadow: 0 2px 8px rgba(100,100,255,0.5);
+  }
+  .subtitle {
+    text-align: center;
+    color: #aaaacc;
+    margin-bottom: 18px;
+    font-size: 1em;
+  }
+  .controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .controls label { font-size: 1em; color: #ccccea; }
+  .controls select {
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 1em;
+    background: #23234a;
+    color: white;
+    cursor: pointer;
+  }
+  .score-board {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .score-item {
+    background: rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 10px 24px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  .score-num { font-size: 2em; font-weight: bold; color: #7ee8a2; }
+  .score-num.wrong { color: #ff7b7b; }
+  .score-label { font-size: 0.8em; color: #aaa; }
+  .envelopes-container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-bottom: 30px;
+  }
+  .envelope-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .envelope-drop-zone {
+    width: 160px;
+    height: 120px;
+    position: relative;
+    border-radius: 8px;
+    transition: box-shadow 0.2s;
+  }
+  .envelope-drop-zone.drag-over {
+    box-shadow: 0 0 0 3px #fff, 0 0 18px 6px rgba(255,255,255,0.4);
+    transform: scale(1.05);
+  }
+  .envelope-drop-zone.correct-flash { animation: flashGreen 0.7s ease; }
+  .envelope-drop-zone.wrong-flash   { animation: flashRed   0.7s ease; }
+  @keyframes flashGreen {
+    0%   { filter: drop-shadow(0 0 0px green); }
+    30%  { filter: drop-shadow(0 0 30px #00ff88) brightness(1.4); }
+    100% { filter: drop-shadow(0 0 0px green); }
+  }
+  @keyframes flashRed {
+    0%   { filter: drop-shadow(0 0 0px red); }
+    30%  { filter: drop-shadow(0 0 30px #ff4444) brightness(1.3); }
+    100% { filter: drop-shadow(0 0 0px red); }
+  }
+  .envelope-label {
+    text-align: center;
+    font-size: 0.95em;
+    color: #dde;
+    font-weight: bold;
+    line-height: 1.4;
+  }
+  .envelope-label span {
+    display: block;
+    font-size: 0.85em;
+    color: #aaa;
+    font-family: monospace;
+  }
+  .cards-area {
+    background: rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 24px;
+    min-height: 120px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    align-items: center;
+    border: 2px dashed rgba(255,255,255,0.15);
+    margin: 0 auto;
+    max-width: 860px;
+  }
+  .card {
+    background: linear-gradient(135deg, #2d2d6b, #3a3a8c);
+    color: #fff;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 1.05em;
+    font-family: monospace;
+    font-weight: bold;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    border: 2px solid rgba(255,255,255,0.2);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+    transition: transform 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+    touch-action: none;
+  }
+  .card:hover {
+    transform: translateY(-3px) scale(1.04);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  }
+  .card.dragging {
+    opacity: 0.5;
+    transform: scale(1.08);
+    cursor: grabbing;
+  }
+  /* Ghost card that follows finger on touch */
+  #touch-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    background: linear-gradient(135deg, #2d2d6b, #3a3a8c);
+    color: #fff;
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 1.05em;
+    font-family: monospace;
+    font-weight: bold;
+    border: 2px solid rgba(255,255,255,0.5);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    white-space: nowrap;
+    display: none;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  .btn-reset {
+    display: block;
+    margin: 22px auto 0 auto;
+    padding: 12px 36px;
+    font-size: 1.1em;
+    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 4px 18px rgba(100,100,255,0.4);
+    transition: transform 0.15s, box-shadow 0.15s;
+    touch-action: manipulation;
+  }
+  .btn-reset:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 24px rgba(100,100,255,0.6);
+  }
+  .success-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+  .success-overlay.show { display: flex; }
+  .success-box {
+    background: linear-gradient(135deg, #1a1a3e, #2a2a6e);
+    border-radius: 20px;
+    padding: 48px 40px;
+    text-align: center;
+    box-shadow: 0 8px 40px rgba(100,100,255,0.5);
+    border: 2px solid rgba(255,255,255,0.2);
+    max-width: 90vw;
+  }
+  .success-box h2 { font-size: 2.2em; color: #7ee8a2; margin-bottom: 12px; }
+  .success-box p  { font-size: 1.1em; color: #ccc; margin-bottom: 24px; }
+  .cards-area-label {
+    text-align: center;
+    color: #aaa;
+    font-size: 0.9em;
+    margin-bottom: 8px;
+  }
+
+  /* Responsive tweaks for small screens */
+  @media (max-width: 600px) {
+    h1 { font-size: 1.4em; }
+    .envelope-drop-zone { width: 120px; height: 90px; }
+    .envelope-drop-zone svg { width: 120px; height: 90px; }
+    .envelopes-container { gap: 12px; }
+    .card { font-size: 0.92em; padding: 10px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🎮 Datentypen-Spiel</h1>
+<p class="subtitle">Ziehe die Karten in den richtigen Briefumschlag!</p>
+
+<div class="controls">
+  <label for="count-select">Anzahl der Karten pro Runde:</label>
+  <select id="count-select">
+    <option value="4">4 Karten</option>
+    <option value="6">6 Karten</option>
+    <option value="8">8 Karten</option>
+    <option value="10">10 Karten</option>
+    <option value="12">12 Karten</option>
+    <option value="16">16 Karten</option>
+  </select>
+</div>
+
+<div class="score-board">
+  <div class="score-item">
+    <div class="score-num" id="score-correct">0</div>
+    <div class="score-label">Richtig ✅</div>
+  </div>
+  <div class="score-item">
+    <div class="score-num wrong" id="score-wrong">0</div>
+    <div class="score-label">Falsch ❌</div>
+  </div>
+  <div class="score-item">
+    <div class="score-num" id="score-remaining" style="color:#f0e68c;">0</div>
+    <div class="score-label">Verbleibend 🃏</div>
+  </div>
+</div>
+
+<div class="envelopes-container" id="envelopes-container"></div>
+
+<p class="cards-area-label">📦 Ziehbereich – Karten hierher zurücklegen oder direkt in einen Umschlag ziehen</p>
+<div class="cards-area" id="cards-area"></div>
+
+<button class="btn-reset" onclick="resetGame()">🔄 Neu starten &amp; mischen</button>
+
+<!-- Ghost element that follows the finger -->
+<div id="touch-ghost"></div>
+
+<div class="success-overlay" id="success-overlay">
+  <div class="success-box">
+    <h2>🎉 Super gemacht!</h2>
+    <p id="success-text">Du hast alle Karten richtig zugeordnet!</p>
+    <button class="btn-reset" onclick="resetGame()">🔄 Nochmal spielen</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  DATA
+// ─────────────────────────────────────────────
+const ALL_CARDS = [
+  { id:'c1',  text:'42',                  type:'int'   },
+  { id:'c2',  text:'-7',                  type:'int'   },
+  { id:'c3',  text:'0',                   type:'int'   },
+  { id:'c4',  text:'1000',                type:'int'   },
+  { id:'c5',  text:'"Otto"',              type:'str'   },
+  { id:'c6',  text:'"TRUE"',              type:'str'   },
+  { id:'c7',  text:'"Python"',            type:'str'   },
+  { id:'c8',  text:'"123"',               type:'str'   },
+  { id:'c9',  text:'True',                type:'bool'  },
+  { id:'c10', text:'False',               type:'bool'  },
+  { id:'c11', text:'5 == 4',              type:'bool'  },
+  { id:'c12', text:'3 > 1',               type:'bool'  },
+  { id:'c13', text:'1.7',                 type:'float' },
+  { id:'c14', text:'3.14',                type:'float' },
+  { id:'c15', text:'-0.5',                type:'float' },
+  { id:'c16', text:'2.718',               type:'float' },
+  { id:'c17', text:'"5+2"',               type:'str'   },
+  { id:'c18', text:'"True"',              type:'str'   },
+  { id:'c19', text:'"Python"=="Python"',  type:'bool'  },
+  { id:'c20', text:'"y==x',               type:'bool'  },
+  { id:'c21', text:'x=5',                 type:'int'   },
+  { id:'c22', text:'Python = 3',          type:'int'   },
+  { id:'c23', text:'2.0',                 type:'float' },
+  { id:'c24', text:'x=x/5',              type:'float' },
+];
+
+const lastOption = document.createElement('option');
+lastOption.value = ALL_CARDS.length;
+lastOption.textContent = `Alle (${ALL_CARDS.length})`;
+document.getElementById('count-select').appendChild(lastOption);
+
+const ENVELOPES = [
+  { type:'int',   label:'Ganze Zahl',         func:'int()',   color1:'#e05c00', color2:'#ff9a44', flap1:'#c94d00', flap2:'#e06600' },
+  { type:'str',   label:'Zeichen / Buchstaben',func:'str()',   color1:'#1565c0', color2:'#42a5f5', flap1:'#0d47a1', flap2:'#1976d2' },
+  { type:'bool',  label:'Wahrheitswerte',      func:'bool()',  color1:'#2e7d32', color2:'#66bb6a', flap1:'#1b5e20', flap2:'#388e3c' },
+  { type:'float', label:'Fließkommazahlen',    func:'float()', color1:'#6a1b9a', color2:'#ab47bc', flap1:'#4a148c', flap2:'#7b1fa2' },
+];
+
+let scoreCorrect = 0;
+let scoreWrong   = 0;
+let activeCards  = [];
+let draggedId    = null;   // used by both mouse-drag and touch
+
+// ─────────────────────────────────────────────
+//  HELPERS
+// ─────────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function makeEnvelopeSVG(env) {
+  return `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160" height="120">
+    <defs>
+      <linearGradient id="bg_${env.type}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%"   stop-color="${env.color1}"/>
+        <stop offset="100%" stop-color="${env.color2}"/>
+      </linearGradient>
+      <linearGradient id="flap_${env.type}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="${env.flap1}"/>
+        <stop offset="100%" stop-color="${env.flap2}"/>
+      </linearGradient>
+    </defs>
+    <rect x="4" y="30" width="152" height="86" rx="8" fill="url(#bg_${env.type})" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+    <polygon points="4,116 80,72 156,116" fill="${env.flap2}" opacity="0.6"/>
+    <polygon points="4,30 4,116 60,73"    fill="${env.flap1}" opacity="0.4"/>
+    <polygon points="156,30 156,116 100,73" fill="${env.flap1}" opacity="0.4"/>
+    <polygon points="4,30 80,78 156,30"   fill="url(#flap_${env.type})" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+    <circle cx="80" cy="60" r="6" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
+  </svg>`;
+}
+
+// ─────────────────────────────────────────────
+//  BUILD UI
+// ─────────────────────────────────────────────
+function buildEnvelopes() {
+  const container = document.getElementById('envelopes-container');
+  container.innerHTML = '';
+  ENVELOPES.forEach(env => {
+    const wrapper  = document.createElement('div');
+    wrapper.className = 'envelope-wrapper';
+
+    const dropZone = document.createElement('div');
+    dropZone.className   = 'envelope-drop-zone';
+    dropZone.id          = 'envelope-' + env.type;
+    dropZone.dataset.type = env.type;
+    dropZone.innerHTML   = makeEnvelopeSVG(env);
+
+    // ── Mouse drag-and-drop ──
+    dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop',      e  => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      handleDrop(env.type, dropZone);
+    });
+
+    const lbl = document.createElement('div');
+    lbl.className = 'envelope-label';
+    lbl.innerHTML = env.label + '<span>' + env.func + '</span>';
+
+    wrapper.appendChild(dropZone);
+    wrapper.appendChild(lbl);
+    container.appendChild(wrapper);
+  });
+}
+
+function buildCards() {
+  const area = document.getElementById('cards-area');
+  area.innerHTML = '';
+  shuffle(activeCards).forEach(card => {
+    area.appendChild(createCardElement(card));
+  });
+  updateRemaining();
+}
+
+function createCardElement(card) {
+  const el = document.createElement('div');
+  el.className  = 'card';
+  el.id         = 'card-' + card.id;
+  el.textContent = card.text;
+  el.draggable  = true;
+
+  // ── Mouse events ──
+  el.addEventListener('dragstart', () => {
+    draggedId = card.id;
+    setTimeout(() => el.classList.add('dragging'), 0);
+  });
+  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+
+  // ── Touch events ──
+  el.addEventListener('touchstart',  onTouchStart,  { passive: false });
+  el.addEventListener('touchmove',   onTouchMove,   { passive: false });
+  el.addEventListener('touchend',    onTouchEnd,    { passive: false });
+  el.addEventListener('touchcancel', onTouchCancel, { passive: false });
+
+  return el;
+}
+
+// ─────────────────────────────────────────────
+//  TOUCH DRAG LOGIC
+// ─────────────────────────────────────────────
+const ghost = document.getElementById('touch-ghost');
+let touchOffsetX = 0;
+let touchOffsetY = 0;
+
+function onTouchStart(e) {
+  if (e.touches.length !== 1) return;
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  const card  = e.currentTarget;
+  draggedId   = card.id.replace('card-', '');
+
+  // Show ghost
+  ghost.textContent = card.textContent;
+  ghost.style.display = 'block';
+  ghost.style.left = touch.clientX + 'px';
+  ghost.style.top  = touch.clientY + 'px';
+
+  card.classList.add('dragging');
+}
+
+function onTouchMove(e) {
+  if (!draggedId) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  ghost.style.left = touch.clientX + 'px';
+  ghost.style.top  = touch.clientY + 'px';
+
+  // Highlight envelope under finger
+  ghost.style.display = 'none';
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  ghost.style.display = 'block';
+
+  // Remove all drag-over highlights first
+  document.querySelectorAll('.envelope-drop-zone').forEach(z => z.classList.remove('drag-over'));
+  const zone = closestDropZone(target);
+  if (zone) zone.classList.add('drag-over');
+}
+
+function onTouchEnd(e) {
+  if (!draggedId) return;
+  e.preventDefault();
+
+  const touch = e.changedTouches[0];
+
+  // Find envelope under finger
+  ghost.style.display = 'none';
+  const target = document.elementFromPoint(touch.clientX, touch.clientY);
+  ghost.style.display = 'none'; // keep hidden
+
+  document.querySelectorAll('.envelope-drop-zone').forEach(z => z.classList.remove('drag-over'));
+
+  const zone = closestDropZone(target);
+  if (zone) {
+    handleDrop(zone.dataset.type, zone);
+  } else {
+    // Dropped outside an envelope – just remove dragging style
+    const cardEl = document.getElementById('card-' + draggedId);
+    if (cardEl) cardEl.classList.remove('dragging');
+    draggedId = null;
+  }
+}
+
+function onTouchCancel() {
+  ghost.style.display = 'none';
+  document.querySelectorAll('.envelope-drop-zone').forEach(z => z.classList.remove('drag-over'));
+  if (draggedId) {
+    const cardEl = document.getElementById('card-' + draggedId);
+    if (cardEl) cardEl.classList.remove('dragging');
+    draggedId = null;
+  }
+}
+
+/** Walk up the DOM from `el` to find the nearest .envelope-drop-zone */
+function closestDropZone(el) {
+  while (el && el !== document.body) {
+    if (el.classList && el.classList.contains('envelope-drop-zone')) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────
+//  GAME LOGIC
+// ─────────────────────────────────────────────
+function handleDrop(targetType, dropZone) {
+  if (!draggedId) return;
+  const card = activeCards.find(c => c.id === draggedId);
+
+  // Clean up ghost / dragging state
+  ghost.style.display = 'none';
+  const cardEl = document.getElementById('card-' + draggedId);
+  if (cardEl) cardEl.classList.remove('dragging');
+
+  if (!card) { draggedId = null; return; }
+
+  if (card.type === targetType) {
+    scoreCorrect++;
+    document.getElementById('score-correct').textContent = scoreCorrect;
+    dropZone.classList.add('correct-flash');
+    setTimeout(() => dropZone.classList.remove('correct-flash'), 700);
+    if (cardEl) cardEl.remove();
+    activeCards = activeCards.filter(c => c.id !== card.id);
+    updateRemaining();
+    if (activeCards.length === 0) setTimeout(showSuccess, 400);
+  } else {
+    scoreWrong++;
+    document.getElementById('score-wrong').textContent = scoreWrong;
+    dropZone.classList.add('wrong-flash');
+    setTimeout(() => dropZone.classList.remove('wrong-flash'), 700);
+    returnCardToArea(card.id);
+  }
+  draggedId = null;
+}
+
+function returnCardToArea(cardId) {
+  const area   = document.getElementById('cards-area');
+  const cardEl = document.getElementById('card-' + cardId);
+  if (!cardEl) return;
+  area.removeChild(cardEl);
+  const children = Array.from(area.children);
+  const pos = Math.floor(Math.random() * (children.length + 1));
+  if (pos >= children.length) area.appendChild(cardEl);
+  else area.insertBefore(cardEl, children[pos]);
+}
+
+function updateRemaining() {
+  document.getElementById('score-remaining').textContent = activeCards.length;
+}
+
+function showSuccess() {
+  document.getElementById('success-text').textContent =
+    'Du hast alle Karten richtig zugeordnet! Richtig: ' + scoreCorrect + ' | Falsch: ' + scoreWrong;
+  document.getElementById('success-overlay').classList.add('show');
+}
+
+// ─────────────────────────────────────────────
+//  RESET
+// ─────────────────────────────────────────────
+function resetGame() {
+  document.getElementById('success-overlay').classList.remove('show');
+  scoreCorrect = 0;
+  scoreWrong   = 0;
+  document.getElementById('score-correct').textContent = '0';
+  document.getElementById('score-wrong').textContent   = '0';
+
+  const count  = parseInt(document.getElementById('count-select').value);
+  const byType = {};
+  ENVELOPES.forEach(e => { byType[e.type] = shuffle(ALL_CARDS.filter(c => c.type === e.type)); });
+
+  let selected   = [];
+  const perType  = Math.floor(count / 4);
+  const remainder = count % 4;
+  ENVELOPES.forEach((e, i) => {
+    const take = perType + (i < remainder ? 1 : 0);
+    selected   = selected.concat(byType[e.type].slice(0, take));
+  });
+  activeCards = shuffle(selected);
+
+  buildEnvelopes();
+  buildCards();
+}
+
+document.getElementById('count-select').addEventListener('change', resetGame);
+resetGame();
+</script>
+</body>
+</html>
